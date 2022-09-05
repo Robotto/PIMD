@@ -1,12 +1,12 @@
 // PI metal detector for arduino version_18_min (C) alex — 1967 201
 /* Pulsed induction: Charge a coil, then discharge and mesaure the duration of the flyback pulse...
- *  If a pulse takes longer (or is it the other way around?!) than usual to calm down, there's metal neaby.
+ *  If a pulse takes longer than usual to calm down, there's metal neaby.
  */
 
 int gaugePositivePin=10;
 int gaugeNegativePin=11;
 
-int piezoPin=9;
+int piezoPin=9; //beeeeep
 int FETpin=12;
  
 //Measured values with calibration offset:
@@ -19,7 +19,6 @@ long c0 = 0;
 long c1 = 0;
 long c2 = 0;
 byte i = 0;
-
 
 //Booleans? - set to 1 if SSx is lower than Cx ... but never reset before all three have triggered??? TODO: is this a bug?
 int sss0 = 0;
@@ -106,16 +105,20 @@ s0 = analogRead (A0);
 s1 = analogRead (A0);
 s2 = analogRead (A0);
 
+//LED readout is done three times... is this somehow relying on POV?
+
 ss0 = s0 - c0;
 if (ss0 <0) sss0 = 1; 
 ss0 = ss0 / 16; //256/16=16
 //PORTD = ss0; // send to the indicator (send to LEDs)
+gauge(25); //This might work
 delay (1);
 
 ss1 = s1 - c1;
 if (ss1 <0)sss1 = 1;
 ss1 = ss1 / 16;
 //PORTD = ss1; // send to the indicator (send to LEDs)
+gauge(50);
 delay (1);
 
 
@@ -123,6 +126,7 @@ ss2 = s2 - c2;
 if (ss2 <0) sss2 = 1;
 ss2 = ss2 / 16;
 //PORTD = ss2; // send to the indicator (send to LEDs)
+gauge(75);
 delay (1);
 
 Serial.print("SS0: "); Serial.println(ss0);
@@ -130,11 +134,14 @@ Serial.print("SS1: "); Serial.println(ss1);
 Serial.print("SS2: "); Serial.println(ss2);
 Serial.println();
 
-//A good indicator melody would be something like: 
-//tone(10, 4000, 25); //every 100 ms
+
 
 if (sss0 + sss1 + sss2> 2) 
   {
+    //WHAT?!
+    beeperIsSupposedToBeOn=True;
+
+    gauge(100);
   /*digitalWrite (7, HIGH);
   digitalWrite (6, HIGH);
   digitalWrite (5, HIGH);
@@ -148,9 +155,22 @@ if (sss0 + sss1 + sss2> 2)
   sss1 = 0;
   sss2 = 0;
   }
+  else beeperIsSupposedToBeOn = false;
 }
 
+unsigned long nextBeepTime = 0;
+bool beeperIsSupposedToBeOn = false;
+unsigned long piezoFrq = 4000;
+uint8_t beepDuration = 25;
 
+
+void beepMaintenance(){ //Beeper maintenance.
+if (beeperIsSupposedToBeOn && millis()>nextBeepTime) {
+  tone(piezoPin, piezoFrq, beepDuration); //every 100 ms
+  nextBeepTime = millis()+100;
+}
+
+}
 
 void gauge(int percent){
   int pwm = map(percent,0,100,-128,128);
